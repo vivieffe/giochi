@@ -1,0 +1,6 @@
+{
+  "name": "La Grande Missione delle 9 Renne",
+  "description": "Gioco natalizio interattivo per bambini (6-10 anni): mappa del Polo Nord, 9 sfide logiche con tasto indizio e Babbo Natale che cambia umore man mano che salvi tutte le renne.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

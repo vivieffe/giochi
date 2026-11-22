@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>La Grande Missione delle 9 Renne — Gioco di Natale</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #0F2439;
+    --cream: #FFFDF9;
+    --sand: #F5F1E8;
+    --red: #DC2626;
+    --red-dark: #B91C1C;
+    --green: #059669;
+    --gold: #F59E0B;
+    --text: #0F172A;
+    --muted: #475569;
+    --border: #E2DDD5;
+  }
+  body {
+    font-family: 'Trebuchet MS', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--navy);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  button, select { font-family: inherit; cursor: pointer; border: none; }
+  .hidden { display: none !important; }
+
+  .snow-layer { position: fixed; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
+  .flake { position: absolute; top: -20px; color: rgba(255,255,255,0.7); animation: fall linear infinite; user-select: none; }
+  @keyframes fall {
+    0% { transform: translateY(-5vh) translateX(0); opacity: 0; }
+    15% { opacity: 0.85; }
+    85% { opacity: 0.85; }
+    100% { transform: translateY(105vh) translateX(20px); opacity: 0; }
+  }
+
+  /* Title Screen */
+  #title-screen {
+    position: relative; z-index: 10; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    background: radial-gradient(circle at 75% 20%, #1E4E79 0%, #0F2439 65%);
+  }
+  .title-card {
+    width: 100%; max-width: 980px;
+    background: rgba(15, 36, 57, 0.94);
+    border: 2px solid rgba(251, 191, 36, 0.35);
+    border-radius: 28px; padding: 28px;
+    display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 28px; align-items: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.45); color: #fff;
+  }
+  @media (max-width: 780px) { .title-card { grid-template-columns: 1fr; text-align: center; padding: 22px; } }
+  .title-kicker { font-size: 13px; font-weight: 700; color: #FCD34D; margin-bottom: 10px; }
+  .title-h1 { font-size: clamp(28px, 4vw, 44px); line-height: 1.12; font-weight: 800; margin-bottom: 14px; }
+  .title-desc { font-size: 15.5px; line-height: 1.55; color: #E2E8F0; margin-bottom: 18px; }
+
+  .diff-group {
+    display: inline-flex; flex-wrap: wrap; gap: 6px; padding: 6px;
+    border-radius: 16px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    margin-bottom: 18px;
+  }
+  .diff-btn {
+    border-radius: 11px; padding: 10px 16px; font-size: 14px; font-weight: 800;
+    background: transparent; color: #fff; min-height: 42px;
+  }
+  .diff-btn.active-easy { background: #10B981; color: #0F172A; }
+  .diff-btn.active-hard { background: #FBBF24; color: #0F172A; }
+
+  .btn-start {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    background: var(--red); color: #fff; font-size: 18px; font-weight: 800;
+    padding: 15px 28px; border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(220,38,38,0.4); min-height: 52px;
+  }
+  .btn-start:hover { background: var(--red-dark); transform: translateY(-2px); }
+  .title-hint { margin-top: 14px; font-size: 13px; color: #CBD5E1; }
+
+  /* Game Shell */
+  #game-screen {
+    position: relative; z-index: 10; min-height: 100vh;
+    display: flex; flex-direction: column;
+    padding: 12px 16px 20px; gap: 12px; max-width: 1320px; margin: 0 auto;
+  }
+  .hud-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+  .santa-box {
+    flex: 1 1 320px; background: var(--cream); border: 1px solid var(--border); border-radius: 20px;
+    padding: 10px 14px; display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  }
+  .santa-portrait {
+    width: 64px; height: 64px; border-radius: 14px; flex-shrink: 0;
+    border: 1px solid #E2E8F0; overflow: hidden; display: flex; align-items: center; justify-content: center;
+  }
+  .santa-meta { flex: 1; min-width: 0; }
+  .santa-count-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .santa-count { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .santa-mood-label { font-size: 12px; font-weight: 700; color: var(--muted); }
+  .progress-track { margin-top: 5px; height: 9px; background: #E2E8F0; border-radius: 99px; overflow: hidden; max-width: 240px; }
+  .progress-fill { height: 100%; border-radius: 99px; transition: width 0.3s ease; }
+  .santa-msg { margin-top: 4px; font-size: 13px; font-weight: 600; color: #334155; }
+
+  .hud-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .hud-btn {
+    background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.25);
+    padding: 9px 13px; border-radius: 13px; font-size: 12.5px; font-weight: 700; min-height: 42px;
+    white-space: nowrap;
+  }
+  .hud-btn:hover { background: rgba(255,255,255,0.22); }
+  .hud-btn.music-on { background: rgba(6, 95, 70, 0.7); border-color: rgba(52, 211, 153, 0.55); }
+  .hud-btn.music-off { background: rgba(136, 19, 55, 0.7); border-color: rgba(251, 113, 133, 0.55); }
+  .hud-select {
+    background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.25);
+    padding: 9px 10px; border-radius: 13px; font-size: 12.5px; font-weight: 700; min-height: 42px;
+  }
+  .hud-select option { color: #0F172A; background: #fff; }
+  .hud-diff {
+    display: inline-flex; padding: 3px; border-radius: 13px;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); min-height: 42px;
+  }
+  .hud-diff button {
+    padding: 6px 11px; border-radius: 9px; font-size: 12px; font-weight: 800; background: transparent; color: #E2E8F0;
+  }
+  .hud-diff button.on-easy { background: #10B981; color: #0F172A; }
+  .hud-diff button.on-hard { background: #FBBF24; color: #0F172A; }
+
+  /* Interactive Map */
+  .map-wrap {
+    position: relative; flex: 1; min-height: 500px;
+    background: linear-gradient(180deg, #102A43 0%, #1E4976 38%, #EBF5FF 39%, #FFFFFF 100%);
+    border-radius: 24px; border: 3px solid rgba(255,255,255,0.25);
+    overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+  }
+  .map-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .reindeer-pin {
+    position: absolute; transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: none; z-index: 4; transition: transform 0.18s;
+  }
+  .reindeer-pin:hover { transform: translate(-50%, -54%) scale(1.06); z-index: 6; }
+  .pin-circle {
+    width: 54px; height: 54px; border-radius: 18px;
+    background: var(--cream); border: 3px solid var(--gold);
+    display: flex; align-items: center; justify-content: center; font-size: 25px;
+    box-shadow: 0 6px 16px rgba(15,23,42,0.3); position: relative;
+  }
+  .reindeer-pin.rescued .pin-circle { background: #ECFDF5; border-color: var(--green); }
+  .reindeer-pin.finale .pin-circle { border-color: var(--red); background: #FEF2F2; }
+  .pin-badge {
+    position: absolute; top: -7px; right: -7px;
+    width: 22px; height: 22px; border-radius: 50%; font-size: 12px; font-weight: 800; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--gold); border: 2px solid #fff;
+  }
+  .reindeer-pin.rescued .pin-badge { background: var(--green); }
+  .pin-label {
+    background: rgba(15, 23, 42, 0.88); color: #fff;
+    padding: 3px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap;
+  }
+  .reindeer-pin.rescued .pin-label { background: #065F46; }
+
+  .roster-strip { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .roster-chip {
+    background: rgba(255,255,255,0.1); color: #E2E8F0; border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 12px; padding: 6px 11px; font-size: 12px; font-weight: 700; min-height: 36px;
+  }
+  .roster-chip.done { background: #065F46; border-color: #34D399; color: #fff; }
+
+  /* Modals */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 30; background: rgba(2, 6, 23, 0.72);
+    display: flex; align-items: center; justify-content: center; padding: 14px; overflow-y: auto;
+  }
+  .modal-card {
+    width: 100%; max-width: 660px; background: var(--cream);
+    border-radius: 26px; border: 2px solid #FDE68A; overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.45); margin: auto;
+  }
+  .modal-head {
+    background: var(--sand); padding: 16px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .modal-title-kicker { font-size: 12px; font-weight: 700; color: var(--muted); }
+  .modal-title { font-size: 18px; font-weight: 800; color: var(--text); }
+  .btn-close {
+    background: #fff; border: 1px solid var(--border); color: var(--text);
+    padding: 8px 14px; border-radius: 12px; font-size: 13px; font-weight: 700; min-height: 40px;
+  }
+  .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .story-box {
+    background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 16px;
+    padding: 12px 14px; font-size: 14px; line-height: 1.5; font-weight: 600; color: #451A03;
+  }
+  .feedback-box { border-radius: 14px; padding: 11px 14px; font-size: 14px; font-weight: 700; }
+  .feedback-err { background: #FFF1F2; color: #9F1239; border: 1px solid #FECDD3; }
+  .feedback-ok { background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; }
+
+  .hint-row { padding-top: 12px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .btn-hint {
+    background: #FBBF24; color: #0F172A; font-size: 14px; font-weight: 800;
+    padding: 11px 18px; border-radius: 14px; min-height: 46px; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .hint-box {
+    flex: 1; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 12px;
+    padding: 9px 12px; font-size: 13px; font-weight: 600; color: #78350F;
+  }
+
+  .game-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .game-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .game-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .game-grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; }
+  @media (max-width: 520px) { .game-grid-4 { grid-template-columns: repeat(2, 1fr); } .game-grid-3 { grid-template-columns: repeat(2, 1fr); } }
+
+  .choice-card {
+    background: #fff; border: 2px solid var(--border); border-radius: 16px;
+    padding: 10px; min-height: 78px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-weight: 700;
+  }
+  .choice-card:hover { border-color: #2563EB; }
+  .choice-card.hint-glow { border-color: #F59E0B; background: #FFFBEB; box-shadow: 0 0 0 4px rgba(251,191,36,0.35); }
+  .choice-card.dimmed { opacity: 0.35; }
+
+  .seq-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; }
+  .seq-tile {
+    min-width: 52px; height: 54px; padding: 0 8px; border-radius: 15px; border: 2px solid var(--border);
+    background: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800;
+  }
+  .seq-tile.q { border-style: dashed; border-color: #2563EB; color: #1D4ED8; background: #EFF6FF; }
+  .seq-tile.hinted { border-color: #F59E0B; background: #FFFBEB; }
+
+  .bell-btn {
+    border-radius: 16px; padding: 13px; min-height: 82px; color: #fff; font-weight: 800;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  }
+  .bell-btn.lit { transform: scale(1.06); filter: brightness(1.15); box-shadow: 0 0 0 5px #FDE047; }
+
+  .stone-btn {
+    height: 54px; border-radius: 14px; border: 2px solid var(--border); background: #fff;
+    font-size: 22px; display: flex; align-items: center; justify-content: center;
+  }
+  .stone-btn.player { background: #D1FAE5; border-color: #059669; }
+  .stone-btn.ice { background: #E0F2FE; border-color: #7DD3FC; }
+  .stone-btn.goal { background: #FEF3C7; border-color: #F59E0B; }
+  .stone-btn.hint-glow { border-color: #F59E0B; box-shadow: 0 0 0 4px rgba(251,191,36,0.45); }
+
+  .letter-slot {
+    width: 40px; height: 48px; border-radius: 12px; border: 2px dashed #CBD5E1;
+    background: #fff; font-size: 19px; font-weight: 800; color: var(--text);
+  }
+  .letter-slot.filled { border-style: solid; border-color: #F59E0B; background: #FBBF24; }
+  .letter-tile {
+    width: 42px; height: 42px; border-radius: 12px; border: 2px solid #CBD5E1;
+    background: #fff; font-size: 18px; font-weight: 800;
+  }
+  .letter-tile:disabled { opacity: 0.25; cursor: default; }
+
+  .victory-box { text-align: center; padding: 28px 22px; }
+  .victory-box h2 { font-size: 28px; font-weight: 800; color: #065F46; margin: 12px 0 8px; }
+  .victory-box p { font-size: 16px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="snow-layer" id="snow-layer" aria-hidden="true"></div>
+
+<!-- TITLE SCREEN -->
+<section id="title-screen">
+  <div class="title-card">
+    <div>
+      <div class="title-kicker">Polo Nord · Vigilia di Natale · Età 6–10 anni</div>
+      <h1 class="title-h1">La Grande Missione delle 9 Renne</h1>
+      <p class="title-desc">
+        Oh no! Le 9 renne di Babbo Natale sono scappate per tutto il Polo Nord.
+        Scegli il tuo livello, esplora la mappa con la musica natalizia e salva tutta la squadra prima di mezzanotte!
+      </p>
+
+      <div class="diff-group" role="group" aria-label="Difficoltà">
+        <button type="button" class="diff-btn active-easy" id="title-diff-easy">Facile · 6–7 anni</button>
+        <button type="button" class="diff-btn" id="title-diff-hard">Difficile · 8–10 anni</button>
+      </div>
+      <br>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+        <button type="button" class="btn-start" id="btn-start">
+          <span>Inizia l'Avventura</span>
+          <span aria-hidden="true">🛷</span>
+        </button>
+        <button type="button" class="hud-btn music-on" id="title-music-btn">🎵 Musica inclusa</button>
+      </div>
+      <div class="title-hint">4 brani natalizi inclusi · Tasto Indizio sempre attivo · 100% offline</div>
+    </div>
+
+    <div style="background:#173452;border-radius:22px;padding:18px;border:1px solid rgba(255,255,255,0.16);text-align:center;">
+      <svg viewBox="0 0 320 220" style="width:100%;height:auto;" aria-hidden="true">
+        <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0B1D33"/><stop offset="100%" stop-color="#1E4976"/></linearGradient></defs>
+        <rect width="320" height="220" rx="16" fill="url(#sky)"/>
+        <path d="M20 45 Q90 15 160 40 T300 30" fill="none" stroke="#34D399" stroke-width="14" stroke-linecap="round" opacity="0.28"/>
+        <circle cx="52" cy="36" r="2.5" fill="#FDE047"/><circle cx="145" cy="24" r="2" fill="#fff"/><circle cx="265" cy="42" r="3" fill="#FDE047"/>
+        <path d="M0 165 Q90 140 185 162 T320 155 L320 220 L0 220 Z" fill="#F8FAFC"/>
+        <polygon points="45,115 24,162 66,162" fill="#14532D"/><polygon points="45,98 29,136 61,136" fill="#166534"/>
+        <polygon points="278,108 254,160 302,160" fill="#14532D"/><polygon points="278,90 260,130 296,130" fill="#166534"/>
+        <path d="M95 168 L195 168 Q215 168 220 148" fill="none" stroke="#F59E0B" stroke-width="5" stroke-linecap="round"/>
+        <path d="M102 158 L192 158 L204 128 L156 128 L142 142 L110 142 Z" fill="#DC2626"/>
+        <rect x="116" y="122" width="22" height="20" rx="3" fill="#2563EB"/><rect x="140" y="116" width="20" height="20" rx="3" fill="#10B981"/>
+        <circle cx="242" cy="145" r="14" fill="#B45309"/><circle cx="255" cy="147" r="4.5" fill="#EF4444"/>
+        <path d="M238 132 L233 120 M245 132 L250 120" stroke="#78350F" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <div style="margin-top:8px;font-size:12.5px;font-weight:700;color:#FDE68A;">
+        Dasher · Dancer · Prancer · Vixen · Comet · Cupid · Donner · Blitzen · Rudolph
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN GAME SCREEN -->
+<section id="game-screen" class="hidden">
+  <header class="hud-bar">
+    <div class="santa-box">
+      <div class="santa-portrait" id="santa-portrait"></div>
+      <div class="santa-meta">
+        <div class="santa-count-row">
+          <span class="santa-count" id="santa-count">0/9</span>
+          <span class="santa-mood-label" id="santa-mood-label">Renne salvate · Babbo Natale: Preoccupato</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="santa-progress" style="width:0%;background:#DC2626;"></div>
+        </div>
+        <div class="santa-msg" id="santa-msg">“Oh no! Le mie 9 renne sono scappate. Aiutami a trovarle!”</div>
+      </div>
+    </div>
+
+    <div class="hud-actions">
+      <div class="hud-diff" role="group" aria-label="Livello">
+        <button type="button" id="hud-diff-easy" class="on-easy">Facile</button>
+        <button type="button" id="hud-diff-hard">Difficile</button>
+      </div>
+
+      <select class="hud-select" id="music-select" aria-label="Brano natalizio">
+        <option value="jingle">🎵 Jingle Bells</option>
+        <option value="tuscendi">🎵 Tu Scendi dalle Stelle</option>
+        <option value="astro">🎵 Astro del Ciel</option>
+        <option value="wewish">🎵 Buon Natale</option>
+      </select>
+
+      <button type="button" class="hud-btn music-on" id="btn-music">🎵 Escludi musica</button>
+      <button type="button" class="hud-btn" id="btn-sfx">🔊 Effetti ON</button>
+      <button type="button" class="hud-btn" id="btn-reset">🔄 Ricomincia</button>
+    </div>
+  </header>
+
+  <main class="map-wrap">
+    <svg class="map-svg" viewBox="0 0 1000 560" preserveAspectRatio="none" aria-hidden="true">
+      <defs><linearGradient id="nightGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0B1F3A"/><stop offset="100%" stop-color="#1E4B7A"/></linearGradient></defs>
+      <rect width="1000" height="230" fill="url(#nightGrad)"/>
+      <path d="M580 55 Q700 15 800 55 T980 35" fill="none" stroke="#34D399" stroke-width="24" stroke-linecap="round" opacity="0.28"/>
+      <circle cx="480" cy="60" r="24" fill="#FEF08A"/><circle cx="490" cy="54" r="21" fill="#0F2644"/>
+      <circle cx="140" cy="50" r="3" fill="#fff"/><circle cx="290" cy="40" r="3" fill="#FDE047"/><circle cx="660" cy="42" r="3" fill="#fff"/>
+      <polygon points="410,235 495,105 585,235" fill="#CBD5E1"/><polygon points="495,105 462,155 528,155" fill="#fff"/>
+      <polygon points="560,235 635,130 720,235" fill="#94A3B8"/><polygon points="635,130 607,172 664,172" fill="#fff"/>
+      <path d="M0 215 Q260 190 520 215 T1000 205 L1000 560 L0 560 Z" fill="#F1F5F9"/>
+      <path d="M0 280 Q320 250 650 285 T1000 270 L1000 560 L0 560 Z" fill="#fff"/>
+      <path d="M160 410 Q180 260 340 165 T610 175 Q760 200 845 210 Q890 320 865 385 Q770 465 650 435 Q500 350 380 415 Q260 470 160 410" fill="none" stroke="#FDE68A" stroke-width="26" stroke-linecap="round" opacity="0.75"/>
+      <ellipse cx="760" cy="440" rx="105" ry="48" fill="#BAE6FD" stroke="#7DD3FC" stroke-width="4"/>
+      <g fill="#166534">
+        <polygon points="480,275 455,330 505,330"/><polygon points="520,285 496,340 544,340"/><polygon points="445,300 420,355 470,355"/>
+      </g>
+      <rect x="115" y="375" width="90" height="58" rx="6" fill="#92400E"/><polygon points="105,378 160,335 215,378" fill="#DC2626"/>
+      <rect x="295" y="135" width="95" height="56" rx="6" fill="#FEF3C7" stroke="#B45309" stroke-width="2"/><polygon points="285,138 342,98 400,138" fill="#DC2626"/>
+      <polygon points="825,215 836,130 854,130 865,215" fill="#DC2626"/><rect x="833" y="114" width="24" height="18" rx="3" fill="#FEF08A"/>
+    </svg>
+    <div id="map-pins"></div>
+  </main>
+
+  <nav class="roster-strip" id="roster-strip" aria-label="Elenco delle 9 renne"></nav>
+</section>
+
+<!-- CHALLENGE MODAL -->
+<div id="challenge-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title-kicker" id="modal-kicker"></div>
+        <h2 class="modal-title" id="modal-title"></h2>
+      </div>
+      <button type="button" class="btn-close" id="btn-close-modal">← Mappa</button>
+    </div>
+    <div class="modal-body">
+      <p class="story-box" id="modal-story"></p>
+      <div id="game-stage"></div>
+      <div id="feedback-box" class="feedback-box hidden"></div>
+      <div class="hint-row">
+        <button type="button" class="btn-hint" id="btn-hint">💡 Indizio / Aiuto</button>
+        <div class="hint-box hidden" id="hint-box"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VICTORY MODAL -->
+<div id="victory-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+  <div class="modal-card victory-box">
+    <div style="font-size:56px;">🛷🎅🦌✨</div>
+    <h2>Evviva! Tutte e 9 le Renne sono Salve!</h2>
+    <p id="victory-text">
+      Grazie al tuo aiuto, tutte e 9 le renne sono di nuovo pronte alla slitta. Buon Natale!
+    </p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;">
+      <button type="button" class="btn-start" id="btn-play-again">Gioca di Nuovo</button>
+      <button type="button" class="btn-close" id="btn-try-hard" style="padding:14px 20px;font-size:15px;">Prova Livello Difficile!</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  /* --- CHRISTMAS MUSIC SEQUENCER (4 Polyphonic Songs) --- */
+  var TRACKS = {
+    jingle: {
+      tempo: 210,
+      mel: [[64,1],[64,1],[64,2],[64,1],[64,1],[64,2],[64,1],[67,1],[60,1.5],[62,0.5],[64,4],[65,1],[65,1],[65,1.5],[65,0.5],[65,1],[64,1],[64,1],[64,0.5],[64,0.5],[64,1],[62,1],[62,1],[64,1],[62,2],[67,2],[64,1],[64,1],[64,2],[64,1],[64,1],[64,2],[64,1],[67,1],[60,1.5],[62,0.5],[64,4],[65,1],[65,1],[65,1.5],[65,0.5],[65,1],[64,1],[64,1],[64,0.5],[64,0.5],[67,1],[67,1],[65,1],[62,1],[60,4]],
+      bas: [[48,2],[55,2],[48,2],[55,2],[48,2],[55,2],[48,2],[52,2],[53,2],[53,2],[48,2],[48,2],[50,2],[50,2],[55,2],[55,2],[48,2],[55,2],[48,2],[55,2],[48,2],[55,2],[48,2],[52,2],[53,2],[53,2],[48,2],[48,2],[55,2],[55,2],[48,4]]
+    },
+    tuscendi: {
+      tempo: 260,
+      mel: [[67,1],[67,1],[69,1],[67,2],[64,1],[65,1],[67,1],[65,1],[64,2],[0,1],[62,1],[64,1],[65,1],[67,2],[64,1],[62,3],[60,3],[67,1],[67,1],[69,1],[67,2],[64,1],[65,1],[67,1],[65,1],[64,2],[0,1],[64,1],[62,1],[60,1],[62,2],[64,1],[60,3],[0,3]],
+      bas: [[48,3],[52,3],[53,3],[48,3],[55,3],[48,3],[55,3],[48,3],[48,3],[52,3],[53,3],[48,3],[55,3],[55,3],[48,6]]
+    },
+    astro: {
+      tempo: 290,
+      mel: [[67,1.5],[69,0.5],[67,1],[64,3],[67,1.5],[69,0.5],[67,1],[64,3],[74,2],[74,1],[71,3],[72,2],[72,1],[67,3],[69,2],[69,1],[72,1.5],[71,0.5],[69,1],[67,1.5],[69,0.5],[67,1],[64,3],[74,2],[74,1],[77,1.5],[74,0.5],[71,1],[72,3],[76,3],[72,1.5],[67,0.5],[64,1],[67,1.5],[65,0.5],[62,1],[60,6]],
+      bas: [[48,3],[48,3],[48,3],[48,3],[55,3],[55,3],[48,3],[48,3],[53,3],[53,3],[48,3],[48,3],[55,3],[55,3],[48,3],[48,3],[48,3],[55,3],[48,6]]
+    },
+    wewish: {
+      tempo: 230,
+      mel: [[62,1],[67,1],[67,0.5],[69,0.5],[67,0.5],[66,0.5],[64,1],[64,1],[64,1],[69,1],[69,0.5],[71,0.5],[69,0.5],[67,0.5],[66,1],[62,1],[62,1],[71,1],[71,0.5],[72,0.5],[71,0.5],[69,0.5],[67,1],[64,1],[62,0.5],[62,0.5],[64,1],[69,1],[66,1],[67,3]],
+      bas: [[50,1],[55,3],[52,3],[57,3],[50,3],[55,3],[52,3],[50,3],[55,3]]
+    }
+  };
+
+  var audioCtx = null;
+  var musicMuted = false;
+  var sfxMuted = false;
+  var currentTrack = 'jingle';
+  var musicTimer = null, mStep = 0, bStep = 0, nextM = 0, nextB = 0;
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) audioCtx = new Ctx();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  function midiFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+  function sched(freq, t, dur, type, vol) {
+    if (!audioCtx) return;
+    var osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.018);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.05, dur));
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + dur + 0.03);
+  }
+  function startMusic() {
+    if (musicMuted || musicTimer) return;
+    var ctx = ensureAudio(); if (!ctx) return;
+    mStep = 0; bStep = 0; nextM = ctx.currentTime + 0.06; nextB = ctx.currentTime + 0.06;
+    musicTimer = setInterval(function() {
+      if (musicMuted || !audioCtx) return;
+      var tr = TRACKS[currentTrack], sec = tr.tempo / 1000, ahead = 0.25;
+      if (nextM < audioCtx.currentTime - 0.5) nextM = audioCtx.currentTime + 0.05;
+      if (nextB < audioCtx.currentTime - 0.5) nextB = audioCtx.currentTime + 0.05;
+      while (nextM < audioCtx.currentTime + ahead) {
+        var n = tr.mel[mStep], d = n[1] * sec;
+        if (n[0] > 0) {
+          var f = midiFreq(n[0]);
+          sched(f, nextM, d * 0.9, 'sine', 0.045);
+          sched(f * 2, nextM, d * 0.4, 'triangle', 0.012);
+        }
+        nextM += d; mStep = (mStep + 1) % tr.mel.length;
+      }
+      while (nextB < audioCtx.currentTime + ahead) {
+        var b = tr.bas[bStep], bd = b[1] * sec;
+        if (b[0] > 0) sched(midiFreq(b[0]), nextB, bd * 0.85, 'triangle', 0.024);
+        nextB += bd; bStep = (bStep + 1) % tr.bas.length;
+      }
+    }, 80);
+  }
+  function stopMusic() { if (musicTimer) { clearInterval(musicTimer); musicTimer = null; } }
+
+  function playTone(freq, dur, type, vol, delay) {
+    if (sfxMuted) return;
+    var ctx = ensureAudio(); if (!ctx) return;
+    sched(freq, ctx.currentTime + (delay || 0), dur, type || 'sine', vol || 0.11);
+  }
+  function sfxTap() { playTone(520, 0.08, 'triangle', 0.09, 0); }
+  function sfxWrong() { playTone(210, 0.16, 'triangle', 0.09, 0); playTone(175, 0.2, 'triangle', 0.09, 0.1); }
+  function sfxHint() { playTone(660, 0.12, 'sine', 0.1, 0); playTone(880, 0.2, 'sine', 0.1, 0.09); }
+  function sfxSaved() { [523,659,784,1046].forEach(function(f,i){ playTone(f, 0.22, 'sine', 0.12, i*0.08); }); }
+  function sfxVictory() {
+    [[659,0.16,0],[659,0.16,0.18],[659,0.3,0.36],[659,0.16,0.72],[659,0.16,0.9],[659,0.3,1.08],[659,0.16,1.44],[784,0.16,1.62],[523,0.2,1.8],[587,0.16,2.02],[659,0.4,2.2]]
+      .forEach(function(n){ playTone(n[0], n[1], 'triangle', 0.13, n[2]); });
+  }
+
+  /* --- DATA --- */
+  var REINDEER = [
+    { id:'dasher', order:1, name:'Dasher (Freccia)', loc:'Laghetto Ghiacciato', x:76, y:78, type:'pattern',
+      title:{easy:'Sequenza Veloce sul Ghiaccio', hard:'Sequenze Logiche sul Ghiaccio'},
+      story:{easy:'Dasher corre così veloce che ha perso il ritmo! Completa la sequenza.', hard:'Risolvi tutte e 3 le sequenze logiche (simboli e numeri) per raggiungere Dasher!'},
+      hint:{easy:'Osserva i primi 3 simboli che si ripetono uguali (1-2-3, poi 1-2-3).', hard:'Controlla i gruppi da 4 simboli o di quanto aumenta ogni numero rispetto al precedente!'} },
+    { id:'dancer', order:2, name:'Dancer (Ballerina)', loc:'Baita delle Feste', x:87, y:65, type:'rhythm',
+      title:{easy:'I Passi di Danza Musicali', hard:'Coreografia delle 6 Campanelle'},
+      story:{easy:'Guarda in che ordine si illuminano le 4 campanelle, poi ripetilo tu!', hard:'Memorizza e ripeti l’esatta sequenza di 6 passi tra 6 campanelle colorate!'},
+      hint:{easy:'Segui i numeri guida colorati che appaiono qui sopra!', hard:'Ecco la lista esatta dei 6 colori da toccare in ordine!'} },
+    { id:'prancer', order:3, name:'Prancer (Saltarello)', loc:'Bosco dei Pini', x:49, y:55, type:'grid',
+      title:{easy:'Programma il Percorso (Coding)', hard:'Coding Avanzato: Campanella e Carota'},
+      story:{easy:'Allinea le tessere (Avanti, Destra, Sinistra) per guidare Prancer alla carota! Destra e Sinistra girano e avanzano di 1. Usa "Prova il percorso".', hard:'Allinea le tessere (Avanti, Destra, Sinistra) per prendere la Campanella 🔔 e poi la Carota 🥕! Destra e Sinistra girano e avanzano di 1.'},
+      hint:{easy:'La tessera consigliata ora brilla d’oro qui sotto!', hard:'Segui la direzione della freccia: la prossima tessera giusta ora brilla d’oro!'} },
+    { id:'vixen', order:4, name:'Vixen (Donnola)', loc:'Officina dei Giocattoli', x:16, y:73, type:'intruder',
+      title:{easy:'Trova l’Intruso nell’Officina', hard:'Sfida dell’Intruso: Logica e Numeri'},
+      story:{easy:'Tra questi oggetti ce n’è uno che NON c’entra niente. Scoprilo!', hard:'Risolvi 3 enigmi tra 6 carte: trova l’unica che rompe la regola!'},
+      hint:{easy:'Pensa a cosa hanno in comune tre oggetti su quattro!', hard:'Controlla tabelline, somme o categorie: due carte giuste sono attenuate!'} },
+    { id:'comet', order:5, name:'Comet (Cometa)', loc:'Osservatorio delle Stelle', x:61, y:29, type:'stars',
+      title:{easy:'Metti in Serie i Numeri Pari', hard:'Metti in Serie la Tabellina del 4'},
+      story:{easy:'Metti in ordine dal più piccolo al più grande solo i NUMERI PARI (2–12), evitando i dispari intrusi!', hard:'Metti in ordine dal più piccolo al più grande la TABELLINA DEL 4 (4–40), evitando i numeri intrusi!'},
+      hint:{easy:'Il prossimo numero pari giusto da toccare ora brilla d’oro!', hard:'Conta di 4 in 4: la stella giusta ora brilla d’oro!'} },
+    { id:'cupid', order:6, name:'Cupid (Cupido)', loc:'Ufficio Postale', x:34, y:27, type:'memory',
+      title:{easy:'Memory delle Letterine (6 Carte)', hard:'Super Memory di Natale (12 Carte)'},
+      story:{easy:'Gira due carte alla volta e trova tutte e 3 le coppie uguali!', hard:'Trova tutte e 6 le coppie uguali tra le 12 carte sul tavolo!'},
+      hint:{easy:'Ho sbirciato sotto due carte uguali per aiutarti!', hard:'Sbirciatina speciale: guarda due carte uguali appena scoperte!'} },
+    { id:'donner', order:7, name:'Donner / Dunder (Lampo)', loc:'Casetta degli Elfi', x:16, y:42, type:'balance',
+      title:{easy:'Carica il Sacco Giusto', hard:'Calcoli degli Elfi per la Slitta'},
+      story:{easy:'Conta le stelline e scegli il pacco che fa arrivare il totale a 10!', hard:'Risolvi i 3 problemi matematici di Natale (addizioni, moltiplicazioni e sottrazioni).'},
+      hint:{easy:'6 più quanto fa 10? Guarda il pacco evidenziato d’oro!', hard:'Esegui un’operazione alla volta: il risultato esatto brilla d’oro!'} },
+    { id:'blitzen', order:8, name:'Blitzen (Fulmine)', loc:'Faro dell’Aurora', x:84, y:31, type:'word',
+      title:{easy:'La Parola Luminosa del Faro', hard:'L’Anagramma del Dolce di Natale'},
+      story:{easy:'Tocca le lettere in ordine per scrivere STELLA!', hard:'Componi il dolce natalizio di 9 lettere (attenzione: ci sono 2 lettere intruse!).'},
+      hint:{easy:'Ho inserito la prossima lettera giusta al suo posto!', hard:'È PANETTONE! Ho inserito la prossima lettera giusta al suo posto.'} },
+    { id:'rudolph', order:9, name:'Rudolph (Naso Rosso)', loc:'Vetta Stella Polare', x:49, y:18, type:'riddle', finale:true,
+      title:{easy:'L’Indovinello della Notte Magica', hard:'Codice Segreto dei 4 Indovinelli'},
+      story:{easy:'Scegli i 3 simboli giusti per rispondere agli indovinelli della Vigilia.', hard:'Risolvi tutti e 4 gli indovinelli della Vigilia scegliendo tra 6 simboli!'},
+      hint:{easy:'Il simbolo giusto per l’indovinello attuale ora brilla d’oro!', hard:'Guarda il simbolo che brilla d’oro per l’indovinello evidenziato!'} }
+  ];
+
+  var difficulty = 'easy';
+  var rescued = new Set();
+  var onHintAction = null;
+
+  /* Snow */
+  (function initSnow() {
+    var layer = document.getElementById('snow-layer');
+    for (var i = 0; i < 22; i++) {
+      var el = document.createElement('span');
+      el.className = 'flake'; el.textContent = '❄';
+      el.style.left = ((i * 41) % 98) + '%';
+      el.style.fontSize = (10 + (i % 4) * 4) + 'px';
+      el.style.animationDuration = (8 + (i % 6) * 2) + 's';
+      el.style.animationDelay = (-(i * 0.8)) + 's';
+      layer.appendChild(el);
+    }
+  })();
+
+  /* Santa Portrait */
+  function renderSanta() {
+    var c = rescued.size, p = c / 9;
+    var mouthCurve = 10 - p * 22, browTilt = (1 - p) * 7 - p * 3, cheekOp = (0.15 + p * 0.65).toFixed(2);
+    var info = c === 0 ? ['Preoccupato', '#FEE2E2', '#DC2626', 'Oh no! Le mie 9 renne sono scappate. Aiutami a trovarle!']
+      : c <= 2 ? ['Speranzoso', '#FFEDD5', '#EA580C', 'Evviva, ne hai già trovata qualcuna! Continuiamo così!']
+      : c <= 4 ? ['Incoraggiato', '#FEF3C7', '#D97706', 'Che bravura! Quasi metà squadra è tornata alla slitta!']
+      : c <= 6 ? ['Sorridente', '#ECFCCB', '#65A30D', 'Fantastico! Le campane suonano sempre più forte!']
+      : c <= 8 ? ['Felicissimo', '#D1FAE5', '#059669', c === 8 ? 'Manca solo una renna! La Vigilia è quasi salva!' : 'Mancano pochissime renne!']
+      : ['Al settimo cielo!', '#DCFCE7', '#15803D', 'Missione compiuta! Tutte e 9 le renne sono pronte!'];
+
+    var port = document.getElementById('santa-portrait');
+    port.style.background = info[1];
+    port.innerHTML =
+      '<svg viewBox="0 0 100 100" width="64" height="64">' +
+      (c >= 7 ? '<path d="M16 20 L18 14 L20 20 L26 22 L20 24 L18 30 L16 24 L10 22 Z" fill="#F59E0B"/>' : '') +
+      '<path d="M22 44 C24 20,46 10,72 18 C82 21,86 30,82 38 L22 44 Z" fill="#DC2626"/>' +
+      '<circle cx="83" cy="34" r="7" fill="#fff" stroke="#E2E8F0" stroke-width="1.5"/>' +
+      '<rect x="19" y="37" width="62" height="12" rx="6" fill="#fff" stroke="#E2E8F0" stroke-width="1.2"/>' +
+      '<circle cx="50" cy="58" r="26" fill="#FFD4B2"/>' +
+      '<ellipse cx="33" cy="61" rx="5.5" ry="3.5" fill="#F43F5E" opacity="' + cheekOp + '"/>' +
+      '<ellipse cx="67" cy="61" rx="5.5" ry="3.5" fill="#F43F5E" opacity="' + cheekOp + '"/>' +
+      '<path d="M23 59 C22 82,34 94,50 94 C66 94,78 82,77 59 C72 67,63 68,50 68 C37 68,28 67,23 59 Z" fill="#fff" stroke="#E2E8F0" stroke-width="1.2"/>' +
+      '<path d="M32 ' + (49 + browTilt * 0.4) + ' Q38 ' + (45 - browTilt * 0.6) + ' 44 ' + (49 - browTilt * 0.3) + '" fill="none" stroke="#fff" stroke-width="3.8" stroke-linecap="round"/>' +
+      '<path d="M56 ' + (49 - browTilt * 0.3) + ' Q62 ' + (45 - browTilt * 0.6) + ' 68 ' + (49 + browTilt * 0.4) + '" fill="none" stroke="#fff" stroke-width="3.8" stroke-linecap="round"/>' +
+      (c === 9
+        ? '<path d="M35 55 Q39 50 43 55 M57 55 Q61 50 65 55" fill="none" stroke="#1E293B" stroke-width="2.8" stroke-linecap="round"/>'
+        : '<circle cx="39" cy="54" r="3.2" fill="#1E293B"/><circle cx="61" cy="54" r="3.2" fill="#1E293B"/>') +
+      (c === 0 ? '<path d="M32 58 C30 61,30 64,32 64 C34 64,34 61,32 58 Z" fill="#38BDF8"/>' : '') +
+      '<path d="M50 63 C43 60,34 63,32 68 C39 69,46 67,50 65 C54 67,61 69,68 68 C66 63,57 60,50 63 Z" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="0.8"/>' +
+      '<ellipse cx="50" cy="59" rx="4.8" ry="3.8" fill="#F87171"/>' +
+      (c >= 7
+        ? '<path d="M41 69 Q50 81 59 69 Z" fill="#991B1B"/>'
+        : '<path d="M41 72 Q50 ' + (72 - mouthCurve) + ' 59 72" fill="none" stroke="#7F1D1D" stroke-width="2.8" stroke-linecap="round"/>') +
+      '</svg>';
+
+    var countEl = document.getElementById('santa-count');
+    countEl.textContent = c + '/9'; countEl.style.color = info[2];
+    document.getElementById('santa-mood-label').textContent = 'Renne salvate · Babbo Natale: ' + info[0];
+    var bar = document.getElementById('santa-progress');
+    bar.style.width = Math.round(p * 100) + '%'; bar.style.background = info[2];
+    document.getElementById('santa-msg').textContent = '“' + info[3] + '”';
+  }
+
+  function renderMap() {
+    var pins = document.getElementById('map-pins');
+    var strip = document.getElementById('roster-strip');
+    pins.innerHTML = ''; strip.innerHTML = '';
+
+    REINDEER.forEach(function(r) {
+      var done = rescued.has(r.id);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'reindeer-pin' + (done ? ' rescued' : '') + (r.finale ? ' finale' : '');
+      btn.style.left = r.x + '%'; btn.style.top = r.y + '%';
+      btn.innerHTML = '<span class="pin-circle">🦌<span class="pin-badge">' + (done ? '✓' : r.order) + '</span></span><span class="pin-label">' + r.name + '</span>';
+      btn.onclick = function() { sfxTap(); openChallenge(r); };
+      pins.appendChild(btn);
+
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'roster-chip' + (done ? ' done' : '');
+      chip.textContent = (done ? '✓ ' : r.order + '. ') + r.name;
+      chip.onclick = function() { sfxTap(); openChallenge(r); };
+      strip.appendChild(chip);
+    });
+  }
+
+  function showFeedback(type, msg) {
+    var fb = document.getElementById('feedback-box');
+    fb.className = 'feedback-box ' + (type === 'ok' ? 'feedback-ok' : 'feedback-err');
+    fb.textContent = msg; fb.classList.remove('hidden');
+  }
+  function clearFeedback() { document.getElementById('feedback-box').classList.add('hidden'); }
+
+  function markRescued(r) {
+    sfxSaved();
+    showFeedback('ok', 'Evviva! Hai salvato ' + r.name + '!');
+    rescued.add(r.id);
+    setTimeout(function() {
+      document.getElementById('challenge-modal').classList.add('hidden');
+      renderSanta(); renderMap();
+      if (rescued.size === 9) {
+        sfxVictory();
+        document.getElementById('btn-try-hard').style.display = difficulty === 'easy' ? 'inline-block' : 'none';
+        document.getElementById('victory-modal').classList.remove('hidden');
+      }
+    }, 950);
+  }
+
+  function openChallenge(r) {
+    var d = difficulty;
+    document.getElementById('modal-kicker').textContent = 'Sfida ' + r.order + ' di 9 · ' + (d === 'hard' ? 'Livello Difficile' : 'Livello Facile') + ' · ' + r.loc;
+    document.getElementById('modal-title').textContent = r.name + ' — ' + r.title[d];
+    document.getElementById('modal-story').textContent = r.story[d];
+    document.getElementById('hint-box').classList.add('hidden');
+    document.getElementById('hint-box').textContent = r.hint[d];
+    clearFeedback(); onHintAction = null;
+
+    var stage = document.getElementById('game-stage'); stage.innerHTML = '';
+    if (r.type === 'pattern') buildPatternGame(stage, r, d);
+    else if (r.type === 'rhythm') buildRhythmGame(stage, r, d);
+    else if (r.type === 'grid') buildGridGame(stage, r, d);
+    else if (r.type === 'intruder') buildIntruderGame(stage, r, d);
+    else if (r.type === 'stars') buildStarsGame(stage, r, d);
+    else if (r.type === 'memory') buildMemoryGame(stage, r, d);
+    else if (r.type === 'balance') buildBalanceGame(stage, r, d);
+    else if (r.type === 'word') buildWordGame(stage, r, d);
+    else if (r.type === 'riddle') buildRiddleGame(stage, r, d);
+
+    document.getElementById('challenge-modal').classList.remove('hidden');
+  }
+
+  /* 1. PATTERN */
+  function buildPatternGame(stage, r, d) {
+    var rounds = d === 'hard' ? [
+      { seq:['🎄','⭐','🎁','🔔','🎄','⭐','🎁'], ans:'🔔', grp:4, opts:[['🎄','Albero'],['🔔','Campana'],['❄️','Fiocco'],['⛄','Pupazzo']] },
+      { seq:['❄️','❄️','🔔','❄️','❄️','🔔','❄️'], ans:'❄️', grp:3, opts:[['❄️','Fiocco'],['🔔','Campana'],['⭐','Stella'],['🎁','Regalo']] },
+      { seq:['1⭐','2⭐','4⭐','7⭐'], ans:'11⭐', grp:4, opts:[['9⭐','+2?'],['10⭐','+3?'],['11⭐','+4!'],['14⭐','×2?']] }
+    ] : [
+      { seq:['🎄','⭐','🎁','🎄','⭐'], ans:'🎁', grp:3, opts:[['🎁','Regalo'],['⛄','Pupazzo'],['🔔','Campana'],['❄️','Fiocco']] }
+    ];
+    var idx = 0, hinted = false;
+    function draw() {
+      stage.innerHTML = '';
+      var cur = rounds[idx];
+      var sub = document.createElement('div');
+      sub.style.cssText = 'text-align:center;font-size:12px;font-weight:700;color:#64748B;margin-bottom:8px;';
+      sub.textContent = 'Livello ' + (idx+1) + ' di ' + rounds.length;
+      stage.appendChild(sub);
+
+      var row = document.createElement('div'); row.className = 'seq-row';
+      cur.seq.forEach(function(s, i) {
+        var tile = document.createElement('div');
+        tile.className = 'seq-tile' + (hinted && i < cur.grp ? ' hinted' : '');
+        tile.textContent = s; row.appendChild(tile);
+      });
+      var q = document.createElement('div'); q.className = 'seq-tile q'; q.textContent = '?'; row.appendChild(q);
+      stage.appendChild(row);
+
+      var g = document.createElement('div'); g.className = 'game-grid-4'; g.style.marginTop = '14px';
+      cur.opts.forEach(function(o, i) {
+        var b = document.createElement('button'); b.type = 'button';
+        b.className = 'choice-card' + (hinted && o[0] !== cur.ans && i % 2 === 1 ? ' dimmed' : '');
+        b.innerHTML = '<span style="font-size:24px;font-weight:800">' + o[0] + '</span><span style="font-size:12px">' + o[1] + '</span>';
+        b.onclick = function() {
+          if (o[0] === cur.ans) {
+            clearFeedback();
+            if (idx + 1 < rounds.length) { idx++; hinted = false; sfxTap(); draw(); }
+            else markRescued(r);
+          } else { sfxWrong(); showFeedback('err', 'Quasi! Osserva bene la regola della sequenza.'); }
+        };
+        g.appendChild(b);
+      });
+      stage.appendChild(g);
+    }
+    draw();
+    onHintAction = function() { hinted = true; draw(); };
+  }
+
+  /* 2. RHYTHM */
+  function buildRhythmGame(stage, r, d) {
+    var allBells = [
+      { id:0, label:'Rosso', bg:'#EF4444', freq:523, icon:'🔔' },
+      { id:1, label:'Oro', bg:'#F59E0B', freq:587, icon:'⭐' },
+      { id:2, label:'Verde', bg:'#10B981', freq:659, icon:'🎄' },
+      { id:3, label:'Blu', bg:'#3B82F6', freq:784, icon:'❄️' },
+      { id:4, label:'Viola', bg:'#8B5CF6', freq:880, icon:'🎁' },
+      { id:5, label:'Corallo', bg:'#F97316', freq:987, icon:'🕯️' }
+    ];
+    var bells = d === 'hard' ? allBells : allBells.slice(0, 4);
+    var seq = d === 'hard' ? [0,4,2,5,1,3] : [0,2,1,3];
+    var delayMs = d === 'hard' ? 470 : 600;
+    var step = 0, playing = false, btns = [];
+
+    var top = document.createElement('div');
+    top.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap;';
+    var status = document.createElement('div'); status.style.cssText = 'font-size:13px;font-weight:700;color:#475569;';
+    var replay = document.createElement('button'); replay.type = 'button'; replay.className = 'btn-close'; replay.textContent = '🔊 Rivedi i passi';
+    top.appendChild(status); top.appendChild(replay); stage.appendChild(top);
+
+    var hintStrip = document.createElement('div');
+    hintStrip.className = 'hidden';
+    hintStrip.style.cssText = 'background:#FDF2F8;border:1px solid #FBCFE8;padding:8px 12px;border-radius:12px;font-size:12.5px;font-weight:700;margin-bottom:10px;';
+    hintStrip.textContent = 'Ordine: ' + seq.map(function(id,i){ return (i+1) + '. ' + allBells[id].label; }).join(' → ');
+    stage.appendChild(hintStrip);
+
+    var grid = document.createElement('div'); grid.className = d === 'hard' ? 'game-grid-3' : 'game-grid-4';
+    bells.forEach(function(b) {
+      var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'bell-btn'; btn.style.background = b.bg;
+      btn.innerHTML = '<span style="font-size:26px">' + b.icon + '</span><span>' + b.label + '</span>';
+      btn.onclick = function() {
+        if (playing) return;
+        playTone(b.freq, 0.22, 'sine', 0.13, 0);
+        btn.classList.add('lit'); setTimeout(function(){ btn.classList.remove('lit'); }, 200);
+        if (b.id === seq[step]) {
+          clearFeedback(); step++; status.textContent = 'Passi giusti: ' + step + ' / ' + seq.length;
+          if (step === seq.length) markRescued(r);
+        } else {
+          sfxWrong(); step = 0; status.textContent = 'Passi giusti: 0 / ' + seq.length;
+          showFeedback('err', 'Ops! Riprova dall’inizio o clicca "Rivedi i passi".');
+        }
+      };
+      btns.push(btn); grid.appendChild(btn);
+    });
+    stage.appendChild(grid);
+
+    function playSeq() {
+      playing = true; step = 0; status.textContent = 'Guarda bene i passi...';
+      seq.forEach(function(id, i) {
+        setTimeout(function(){ btns[id].classList.add('lit'); playTone(bells[id].freq, 0.2, 'sine', 0.13, 0); }, 400 + i * delayMs);
+        setTimeout(function(){ btns[id].classList.remove('lit'); }, 400 + i * delayMs + Math.round(delayMs*0.6));
+      });
+      setTimeout(function(){ playing = false; status.textContent = 'Tocca le campanelle! (0 / ' + seq.length + ')'; }, 450 + seq.length * delayMs);
+    }
+    replay.onclick = playSeq; playSeq();
+    onHintAction = function() { hintStrip.classList.remove('hidden'); };
+  }
+
+  /* 3. CODING PATH (Avanti, Destra, Sinistra + Prova il percorso) */
+  function buildGridGame(stage, r, d) {
+    var isHard = d === 'hard';
+    var rows = isHard ? 4 : 3, cols = isHard ? 5 : 4;
+    var hazards = isHard ? {'0,2':1,'1,0':1,'1,3':1,'2,0':1,'3,0':1,'3,3':1,'0,4':1,'1,4':1} : {'0,2':1,'2,0':1,'1,3':1};
+    var bell = [2,1], goal = isHard ? [3,4] : [2,3];
+    var deltas = [[0,1],[1,0],[0,-1],[-1,0]];
+    var arrows = ['➡️','⬇️','⬅️','⬆️'];
+    var meta = { F:['⬆️','Avanti','#2563EB'], L:['↩️','Sinistra','#D97706'], R:['↪️','Destra','#059669'] };
+    var prog = [], simPos = [0,0], simDir = 0, simBell = !isHard, running = false, execIdx = -1, progNote = '', hinted = false;
+
+    function stepCmd(cr, cc, cdir, cmd) {
+      var nd = cmd === 'F' ? cdir : cmd === 'R' ? (cdir + 1) % 4 : (cdir + 3) % 4;
+      return { r: cr + deltas[nd][0], c: cc + deltas[nd][1], dir: nd };
+    }
+
+    function nextHintCmd() {
+      var cr = 0, cc = 0, cd = 0, cb = !isHard;
+      for (var i=0;i<prog.length;i++) {
+        var nx = stepCmd(cr, cc, cd, prog[i]);
+        if (nx.r<0||nx.r>=rows||nx.c<0||nx.c>=cols||hazards[nx.r+','+nx.c]) return null;
+        cr = nx.r; cc = nx.c; cd = nx.dir;
+        if (isHard && cr===bell[0] && cc===bell[1]) cb = true;
+      }
+      var q = [{r:cr,c:cc,dir:cd,bell:cb,first:null}], vis = {};
+      vis[cr+','+cc+','+cd+','+(cb?1:0)] = 1;
+      var cmds = ['F','R','L'];
+      while (q.length) {
+        var cur = q.shift();
+        if (cur.r===goal[0] && cur.c===goal[1] && (!isHard || cur.bell)) return cur.first;
+        for (var j=0;j<cmds.length;j++) {
+          var nxt = stepCmd(cur.r, cur.c, cur.dir, cmds[j]);
+          if (nxt.r<0||nxt.r>=rows||nxt.c<0||nxt.c>=cols||hazards[nxt.r+','+nxt.c]) continue;
+          var nb = cur.bell || (isHard && nxt.r===bell[0] && nxt.c===bell[1]);
+          var key = nxt.r+','+nxt.c+','+nxt.dir+','+(nb?1:0);
+          if (!vis[key]) { vis[key]=1; q.push({r:nxt.r,c:nxt.c,dir:nxt.dir,bell:nb,first:cur.first||cmds[j]}); }
+        }
+      }
+      return null;
+    }
+
+    function draw() {
+      stage.innerHTML = '';
+      var info = document.createElement('div');
+      info.style.cssText = 'display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;flex-wrap:wrap;gap:6px;';
+      info.innerHTML = '<span>Prancer guarda: ' + arrows[simDir] + (isHard ? (simBell ? ' · Campanella 🔔 ✓' : ' · Prendi 🔔 poi 🥕') : '') + '</span><span>Le caselle non si cliccano!</span>';
+      stage.appendChild(info);
+
+      var grid = document.createElement('div');
+      grid.style.cssText = 'display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:6px;max-width:' + (isHard?'380px':'330px') + ';margin:0 auto 12px;';
+      for (var row=0; row<rows; row++) {
+        for (var col=0; col<cols; col++) {
+          var k = row+','+col;
+          var isP = simPos[0]===row && simPos[1]===col;
+          var isB = isHard && !simBell && row===bell[0] && col===bell[1];
+          var isG = row===goal[0] && col===goal[1];
+          var isH = !!hazards[k];
+          var cell = document.createElement('div');
+          cell.className = 'stone-btn' + (isP?' player':isH?' ice':(isG||isB)?' goal':'');
+          cell.style.height = isHard ? '48px' : '54px';
+          cell.innerHTML = isP ? '<span>🦌</span><span style="font-size:13px">' + arrows[simDir] + '</span>' : isB ? '🔔' : isG ? '🥕' : isH ? '🧊' : '<span style="font-size:14px;color:#7DD3FC">❄️</span>';
+          grid.appendChild(cell);
+        }
+      }
+      stage.appendChild(grid);
+
+      var hintCmd = hinted ? nextHintCmd() : null;
+      var pal = document.createElement('div');
+      pal.className = 'game-grid-3'; pal.style.maxWidth = '380px'; pal.style.margin = '0 auto 10px';
+      ['F','L','R'].forEach(function(cmd) {
+        var b = document.createElement('button'); b.type = 'button'; b.disabled = running;
+        b.style.cssText = 'border-radius:14px;padding:10px;color:#fff;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:2px;background:' + meta[cmd][2] + (hintCmd===cmd?';box-shadow:0 0 0 4px #FBBF24':'');
+        b.innerHTML = '<span style="font-size:20px">' + meta[cmd][0] + '</span><span style="font-size:12.5px">' + meta[cmd][1] + '</span>';
+        b.onclick = function() {
+          if (running || prog.length>=16) return;
+          sfxTap(); clearFeedback(); progNote = ''; prog.push(cmd); draw();
+        };
+        pal.appendChild(b);
+      });
+      stage.appendChild(pal);
+
+      var stripWrap = document.createElement('div');
+      stripWrap.style.cssText = 'background:#F1F5F9;border:1px solid #E2E8F0;border-radius:14px;padding:10px;margin-bottom:10px;';
+      var stripHead = document.createElement('div');
+      stripHead.style.cssText = 'display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;';
+      stripHead.innerHTML = '<span>Il tuo percorso (' + prog.length + ') — tocca una tessera per toglierla</span>';
+      if (prog.length > 0) {
+        var clr = document.createElement('button'); clr.type = 'button'; clr.disabled = running;
+        clr.style.cssText = 'background:none;color:#BE123C;font-weight:800;font-size:12px;';
+        clr.textContent = '🗑 Svuota';
+        clr.onclick = function() { if (running) return; sfxTap(); prog=[]; simPos=[0,0]; simDir=0; simBell=!isHard; execIdx=-1; progNote=''; clearFeedback(); draw(); };
+        stripHead.appendChild(clr);
+      }
+      stripWrap.appendChild(stripHead);
+
+      var strip = document.createElement('div');
+      strip.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;min-height:36px;align-items:center;';
+      if (prog.length === 0) {
+        strip.innerHTML = '<span style="font-size:12px;color:#94A3B8">Aggiungi Avanti, Sinistra o Destra!</span>';
+      } else {
+        prog.forEach(function(cmd, idx) {
+          var tb = document.createElement('button'); tb.type = 'button'; tb.disabled = running;
+          tb.style.cssText = 'border-radius:10px;padding:5px 9px;color:#fff;font-size:12px;font-weight:800;background:' + meta[cmd][2] + (execIdx===idx?';box-shadow:0 0 0 4px #FBBF24;transform:scale(1.08)':'');
+          tb.textContent = (idx+1) + '. ' + meta[cmd][0] + ' ' + meta[cmd][1];
+          tb.onclick = function() { if (running) return; sfxTap(); prog.splice(idx,1); progNote=''; clearFeedback(); draw(); };
+          strip.appendChild(tb);
+        });
+      }
+      stripWrap.appendChild(strip); stage.appendChild(stripWrap);
+
+      if (progNote) {
+        var note = document.createElement('div');
+        note.style.cssText = 'background:#F0F9FF;border:1px solid #BAE6FD;border-radius:12px;padding:8px 12px;font-size:12.5px;font-weight:700;color:#0C4A6E;text-align:center;margin-bottom:8px;';
+        note.textContent = progNote; stage.appendChild(note);
+      }
+
+      var runWrap = document.createElement('div'); runWrap.style.textAlign = 'center';
+      var runBtn = document.createElement('button'); runBtn.type = 'button'; runBtn.disabled = running;
+      runBtn.style.cssText = 'background:#059669;color:#fff;font-size:15px;font-weight:800;padding:12px 24px;border-radius:14px;min-height:46px;';
+      runBtn.textContent = running ? 'Prancer sta provando...' : '▶️ Prova il percorso';
+      runBtn.onclick = function() {
+        if (running) return;
+        if (prog.length === 0) { sfxWrong(); showFeedback('err', 'Aggiungi prima qualche tessera!'); return; }
+        clearFeedback(); progNote = ''; running = true; simPos = [0,0]; simDir = 0; simBell = !isHard; execIdx = -1; draw();
+        var cr = 0, cc = 0, cd = 0, cb = !isHard, frames = [];
+        for (var i=0;i<prog.length;i++) {
+          var nx = stepCmd(cr, cc, cd, prog[i]);
+          if (nx.r<0||nx.r>=rows||nx.c<0||nx.c>=cols) { frames.push({idx:i,r:cr,c:cc,dir:nx.dir,bell:cb,err:'Al passo '+(i+1)+' esci dal sentiero!'}); break; }
+          if (hazards[nx.r+','+nx.c]) { frames.push({idx:i,r:cr,c:cc,dir:nx.dir,bell:cb,err:'Al passo '+(i+1)+' c’è ghiaccio 🧊!'}); break; }
+          cr = nx.r; cc = nx.c; cd = nx.dir;
+          if (isHard && cr===bell[0] && cc===bell[1]) cb = true;
+          frames.push({idx:i,r:cr,c:cc,dir:cd,bell:cb});
+        }
+        frames.forEach(function(f, s) {
+          setTimeout(function() {
+            execIdx = f.idx; simPos = [f.r, f.c]; simDir = f.dir; simBell = f.bell;
+            if (f.err) { sfxWrong(); running = false; draw(); showFeedback('err', f.err); return; }
+            sfxTap();
+            if (s === frames.length - 1) {
+              running = false; execIdx = -1;
+              if (f.r===goal[0] && f.c===goal[1] && (!isHard || f.bell)) { draw(); markRescued(r); }
+              else if (f.r===goal[0] && f.c===goal[1] && isHard && !f.bell) { draw(); sfxWrong(); showFeedback('err', 'Prima devi passare sulla Campanella 🔔!'); }
+              else { progNote = 'Prancer è arrivato fino qui (' + prog.length + ' tessere). Continua!'; draw(); }
+            } else { draw(); }
+          }, 340 * (s + 1));
+        });
+      };
+      runWrap.appendChild(runBtn); stage.appendChild(runWrap);
+    }
+    draw();
+    onHintAction = function() { hinted = true; draw(); };
+  }
+
+  /* 4. INTRUDER */
+  function buildIntruderGame(stage, r, d) {
+    var rounds = d === 'hard' ? [
+      { q:'Quale numero NON è nella tabellina del 3?', items:[['6',0],['9',0],['14',1],['12',0],['15',0],['18',0]] },
+      { q:'Quale somma NON fa 20?', items:[['12+8',0],['15+5',0],['10+10',0],['11+8',1],['14+6',0],['17+3',0]] },
+      { q:'Quale parola NON appartiene al Polo Nord?', items:[['🧊 Ghiaccio',0],['❄️ Neve',0],['🐪 Cammello',1],['🛷 Slitta',0],['🧤 Guanti',0],['🌲 Abete',0]] }
+    ] : [
+      { q:'Quale NON serve quando fuori nevica?', items:[['🧤 Guanti',0],['🧣 Sciarpa',0],['🏖️ Spiaggia',1],['🧥 Cappotto',0]] },
+      { q:'Quale NON è uno strumento musicale?', items:[['🔔 Campana',0],['🥁 Tamburo',0],['🥕 Carota',1],['🎺 Tromba',0]] }
+    ];
+    var idx = 0, hinted = false;
+    function draw() {
+      stage.innerHTML = '';
+      var cur = rounds[idx];
+      var h = document.createElement('div');
+      h.style.cssText = 'text-align:center;font-size:16.5px;font-weight:800;margin-bottom:12px;';
+      h.textContent = (idx+1) + '/' + rounds.length + ' · ' + cur.q;
+      stage.appendChild(h);
+      var g = document.createElement('div'); g.className = d === 'hard' ? 'game-grid-3' : 'game-grid-2';
+      cur.items.forEach(function(it, i) {
+        var b = document.createElement('button'); b.type = 'button';
+        b.className = 'choice-card' + (hinted && !it[1] && i < (d==='hard'?2:1) ? ' dimmed' : '');
+        b.innerHTML = '<span style="font-size:20px;font-weight:800">' + it[0] + '</span>';
+        b.onclick = function() {
+          if (it[1]) {
+            clearFeedback();
+            if (idx+1 < rounds.length) { idx++; hinted=false; sfxTap(); draw(); }
+            else markRescued(r);
+          } else { sfxWrong(); showFeedback('err', 'Questo rispetta la regola! Cerca l’intruso.'); }
+        };
+        g.appendChild(b);
+      });
+      stage.appendChild(g);
+    }
+    draw();
+    onHintAction = function() { hinted = true; draw(); };
+  }
+
+  /* 5. NUMBER SERIES (Easy: Even 2..12 + distractors | Hard: 4x table + distractors) */
+  function buildStarsGame(stage, r, d) {
+    var isHard = d === 'hard';
+    var target = isHard ? [4,8,12,16,20,24,28,32,36,40] : [2,4,6,8,10,12];
+    var pool = isHard ? [24,10,8,36,18,4,28,16,22,40,12,30,32,20] : [8,3,12,2,7,6,11,4,10];
+    var step = 0, hinted = false;
+
+    function draw() {
+      stage.innerHTML = '';
+      var top = document.createElement('div');
+      top.style.cssText = 'text-align:center;font-size:13px;font-weight:700;color:#475569;margin-bottom:8px;';
+      top.textContent = (isHard ? 'Tabellina del 4 dal più piccolo al più grande' : 'Numeri pari dal più piccolo al più grande') + ' (' + step + '/' + target.length + ')';
+      stage.appendChild(top);
+
+      var slotsBar = document.createElement('div');
+      slotsBar.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:center;gap:6px;background:#0F172A;border-radius:16px;padding:10px;margin-bottom:12px;';
+      target.forEach(function(n, idx) {
+        var sl = document.createElement('div');
+        var filled = idx < step, cur = idx === step;
+        sl.style.cssText = 'min-width:36px;height:36px;padding:0 6px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;border:2px ' +
+          (filled ? 'solid #FCD34D;background:#FBBF24;color:#0F172A' : cur ? 'dashed #818CF8;background:#312E81;color:#E0E7FF' : 'solid #334155;background:#1E293B;color:#64748B');
+        sl.textContent = filled ? n : cur ? '?' : '·';
+        slotsBar.appendChild(sl);
+      });
+      stage.appendChild(slotsBar);
+
+      var g = document.createElement('div');
+      g.style.cssText = 'display:grid;grid-template-columns:repeat(' + (isHard?5:3) + ',1fr);gap:9px;max-width:' + (isHard?'500px':'340px') + ';margin:0 auto;';
+      pool.forEach(function(num) {
+        var inTarget = target.indexOf(num) !== -1;
+        var done = inTarget && num < target[step];
+        var isNext = num === target[step];
+        var b = document.createElement('button'); b.type = 'button'; b.disabled = done;
+        b.className = 'choice-card' + (hinted && isNext ? ' hint-glow' : '');
+        b.style.minHeight = '56px';
+        if (done) { b.style.opacity = '0.45'; b.style.background = '#ECFDF5'; }
+        b.innerHTML = '<span style="font-size:18px;font-weight:800">⭐ ' + num + '</span>';
+        b.onclick = function() {
+          if (!inTarget) {
+            sfxWrong();
+            showFeedback('err', isHard ? (num + ' è un intruso: non è nella tabellina del 4!') : (num + ' è dispari! Cerca solo i numeri pari.'));
+            return;
+          }
+          if (num === target[step]) {
+            clearFeedback(); playTone(460 + step*35, 0.16, 'sine', 0.12, 0);
+            step++; draw();
+            if (step === target.length) markRescued(r);
+          } else if (num > target[step]) {
+            sfxWrong(); showFeedback('err', 'Parti dal più piccolo! Prima di ' + num + ' c’è un altro numero.');
+          }
+        };
+        g.appendChild(b);
+      });
+      stage.appendChild(g);
+    }
+    draw();
+    onHintAction = function() { hinted = true; draw(); };
+  }
+
+  /* 6. MEMORY */
+  function buildMemoryGame(stage, r, d) {
+    var base = [{id:'h',ic:'❤️',lb:'Cuore'},{id:'b',ic:'🧸',lb:'Orsetto'},{id:'t',ic:'🚂',lb:'Trenino'}];
+    if (d === 'hard') base = base.concat([{id:'g',ic:'🎁',lb:'Regalo'},{id:'s',ic:'⛄',lb:'Pupazzo'},{id:'c',ic:'🔔',lb:'Campana'}]);
+    var deck = base.concat(base).map(function(c){ return {id:c.id,ic:c.ic,lb:c.lb}; }).sort(function(){ return Math.random()-0.5; });
+    var open = [], matched = {}, peek = [], lock = false, moves = 0;
+
+    function draw() {
+      stage.innerHTML = '';
+      var top = document.createElement('div');
+      top.style.cssText = 'text-align:center;font-size:13px;font-weight:700;color:#475569;margin-bottom:10px;';
+      top.textContent = 'Coppie: ' + Object.keys(matched).length + ' / ' + base.length + ' · Mosse: ' + moves;
+      stage.appendChild(top);
+
+      var g = document.createElement('div'); g.className = d === 'hard' ? 'game-grid-4' : 'game-grid-3';
+      g.style.maxWidth = d === 'hard' ? '480px' : '380px'; g.style.margin = '0 auto';
+      deck.forEach(function(c, i) {
+        var isOpen = !!matched[c.id] || open.indexOf(i)!==-1 || peek.indexOf(i)!==-1;
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'choice-card';
+        b.style.height = d === 'hard' ? '76px' : '92px';
+        if (matched[c.id]) { b.style.background = '#ECFDF5'; b.style.borderColor = '#10B981'; }
+        else if (!isOpen) { b.style.background = '#E11D48'; b.style.borderColor = '#BE123C'; b.style.color = '#fff'; }
+        b.innerHTML = isOpen ? '<span style="font-size:26px">' + c.ic + '</span><span style="font-size:11px">' + c.lb + '</span>' : '<span style="font-size:22px">✉️</span>';
+        b.onclick = function() {
+          if (lock || matched[c.id] || open.indexOf(i)!==-1) return;
+          sfxTap(); open.push(i); draw();
+          if (open.length === 2) {
+            moves++; lock = true;
+            var a = deck[open[0]], bb = deck[open[1]];
+            if (a.id === bb.id) {
+              matched[a.id] = 1; open = []; lock = false; draw();
+              if (Object.keys(matched).length === base.length) markRescued(r);
+            } else {
+              setTimeout(function(){ open = []; lock = false; draw(); }, 700);
+            }
+          }
+        };
+        g.appendChild(b);
+      });
+      stage.appendChild(g);
+    }
+    draw();
+    onHintAction = function() {
+      for (var i=0;i<deck.length;i++) {
+        if (!matched[deck[i].id]) {
+          var tid = deck[i].id; peek = [];
+          deck.forEach(function(c, idx){ if (c.id===tid) peek.push(idx); });
+          draw(); setTimeout(function(){ peek=[]; draw(); }, 1600); break;
+        }
+      }
+    };
+  }
+
+  /* 7. BALANCE */
+  function buildBalanceGame(stage, r, d) {
+    var rounds = d === 'hard' ? [
+      { q:'18 stelle nel sacco su 25 posti: quante ne mancano?', eq:'18 + ? = 25', ans:7, opts:[5,6,7,8] },
+      { q:'3 slitte con 4 pacchi ciascuna, più 5 pacchi extra:', eq:'(3 × 4) + 5 = ?', ans:17, opts:[12,15,17,19] },
+      { q:'30 biscotti meno 12 a Dasher e meno 9 a Comet:', eq:'30 − 12 − 9 = ?', ans:9, opts:[7,8,9,11] }
+    ] : [
+      { q:'Quale pacco fa arrivare il sacco a 10 stelle?', eq:'6 ⭐ + ? = 10 ⭐', ans:4, opts:[2,4,5,7] }
+    ];
+    var idx = 0, hinted = false;
+    function draw() {
+      stage.innerHTML = '';
+      var cur = rounds[idx];
+      var eq = document.createElement('div');
+      eq.style.cssText = 'text-align:center;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:16px;padding:12px;margin-bottom:14px;';
+      eq.innerHTML = '<div style="font-size:14px;font-weight:700;margin-bottom:6px">' + cur.q + '</div><div style="font-size:22px;font-weight:800;color:#0369A1">' + cur.eq + '</div>';
+      stage.appendChild(eq);
+
+      var g = document.createElement('div'); g.className = 'game-grid-4';
+      cur.opts.forEach(function(val) {
+        var b = document.createElement('button'); b.type = 'button';
+        b.className = 'choice-card' + (hinted && val === cur.ans ? ' hint-glow' : '');
+        b.innerHTML = '<span style="font-size:22px;font-weight:800">' + (d==='easy'?'+'+val:val) + '</span>' + (d==='easy'?'<span style="font-size:12px">'+'⭐'.repeat(val)+'</span>':'');
+        b.onclick = function() {
+          if (val === cur.ans) {
+            clearFeedback();
+            if (idx+1 < rounds.length) { idx++; hinted=false; sfxTap(); draw(); }
+            else markRescued(r);
+          } else { sfxWrong(); showFeedback('err', 'Riprova il calcolo con calma!'); }
+        };
+        g.appendChild(b);
+      });
+      stage.appendChild(g);
+    }
+    draw();
+    onHintAction = function() { hinted = true; draw(); };
+  }
+
+  /* 8. WORD SCRAMBLE */
+  function buildWordGame(stage, r, d) {
+    var target = d === 'hard' ? 'PANETTONE' : 'STELLA';
+    var tiles = d === 'hard' ? ['T','E','P','R','N','O','A','T','S','N','E'] : ['L','S','A','T','E','L'];
+    var slots = Array.apply(null, Array(target.length)).map(function(){ return null; });
+
+    function draw() {
+      stage.innerHTML = '';
+      var clue = document.createElement('div');
+      clue.style.cssText = 'text-align:center;background:#FFFBEB;border:1px solid #FDE68A;border-radius:14px;padding:10px;font-size:13.5px;font-weight:700;margin-bottom:12px;';
+      clue.textContent = d === 'hard' ? '🍰 Dolce natalizio italiano di 9 lettere (ci sono 2 lettere intruse!)' : '⭐ Scrivi la parola luminosa: STELLA';
+      stage.appendChild(clue);
+
+      var sRow = document.createElement('div'); sRow.className = 'seq-row'; sRow.style.marginBottom = '12px';
+      slots.forEach(function(ti, si) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'letter-slot' + (ti!==null?' filled':'');
+        b.textContent = ti!==null ? tiles[ti] : '';
+        b.onclick = function() { if (ti!==null) { sfxTap(); slots[si]=null; clearFeedback(); draw(); } };
+        sRow.appendChild(b);
+      });
+      stage.appendChild(sRow);
+
+      var tRow = document.createElement('div'); tRow.className = 'seq-row';
+      tiles.forEach(function(ch, ti) {
+        var used = slots.indexOf(ti) !== -1;
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'letter-tile'; b.disabled = used;
+        b.textContent = ch;
+        b.onclick = function() {
+          var empty = slots.indexOf(null); if (empty === -1) return;
+          sfxTap(); clearFeedback(); slots[empty] = ti; draw();
+          if (slots.indexOf(null) === -1) {
+            var word = slots.map(function(i){ return tiles[i]; }).join('');
+            if (word === target) markRescued(r);
+            else { sfxWrong(); showFeedback('err', 'Quasi! Tocca una lettera in alto per toglierla.'); }
+          }
+        };
+        tRow.appendChild(b);
+      });
+      stage.appendChild(tRow);
+    }
+    draw();
+    onHintAction = function() {
+      for (var i=0;i<target.length;i++) {
+        if (slots[i]===null || tiles[slots[i]]!==target[i]) {
+          var need = target[i];
+          var ti = tiles.findIndex(function(ch, idx){ return ch===need && slots.indexOf(idx)===-1; });
+          if (ti===-1) ti = tiles.indexOf(need);
+          slots = slots.map(function(x){ return x===ti?null:x; });
+          slots[i] = ti; draw();
+          var word = slots.map(function(idx){ return idx!==null?tiles[idx]:''; }).join('');
+          if (word === target) markRescued(r);
+          break;
+        }
+      }
+    };
+  }
+
+  /* 9. FINALE RIDDLE */
+  function buildRiddleGame(stage, r, d) {
+    var clues = d === 'hard' ? [
+      { q:'1. Segna la mezzanotte esatta della Vigilia', a:'clock' },
+      { q:'2. Illumina la nebbia davanti alla slitta', a:'nose' },
+      { q:'3. Scende leggero e silenzioso dalle nuvole', a:'snow' },
+      { q:'4. È arancione e croccante per le renne', a:'carrot' }
+    ] : [
+      { q:'1. Illumina la nebbia davanti alla slitta', a:'nose' },
+      { q:'2. Fa "din-don!" sul collare delle renne', a:'bell' },
+      { q:'3. È verde, pieno di palline e regali sotto', a:'tree' }
+    ];
+    var syms = [
+      { id:'nose', ic:'🔴', lb:'Naso Rosso' },
+      { id:'snow', ic:'❄️', lb:'Fiocco' },
+      { id:'bell', ic:'🔔', lb:'Campanella' },
+      { id:'carrot', ic:'🥕', lb:'Carota' },
+      { id:'tree', ic:'🎄', lb:'Albero' }
+    ];
+    if (d === 'hard') syms.push({ id:'clock', ic:'🕰️', lb:'Orologio' });
+    var step = 0, hinted = false;
+
+    function draw() {
+      stage.innerHTML = '';
+      var list = document.createElement('div');
+      list.style.cssText = 'display:flex;flex-direction:column;gap:7px;margin-bottom:12px;';
+      clues.forEach(function(cl, i) {
+        var row = document.createElement('div');
+        var done = i < step, act = i === step;
+        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-radius:14px;border:2px solid ' +
+          (done?'#34D399;background:#ECFDF5':act?'#FB7185;background:#FFF1F2':'#E2E8F0;background:#F8FAFC') + ';font-size:13px;font-weight:700;';
+        var sym = syms.find(function(s){ return s.id===cl.a; });
+        row.innerHTML = '<span>' + cl.q + '</span><span style="font-size:19px">' + (done?sym.ic:act?'?':'·') + '</span>';
+        list.appendChild(row);
+      });
+      stage.appendChild(list);
+
+      var g = document.createElement('div');
+      g.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:9px;';
+      syms.forEach(function(s) {
+        var b = document.createElement('button'); b.type = 'button';
+        b.className = 'choice-card' + (hinted && s.id === clues[step].a ? ' hint-glow' : '');
+        b.innerHTML = '<span style="font-size:26px">' + s.ic + '</span><span style="font-size:11.5px">' + s.lb + '</span>';
+        b.onclick = function() {
+          if (s.id === clues[step].a) {
+            clearFeedback(); sfxTap(); step++; hinted = false; draw();
+            if (step === clues.length) markRescued(r);
+          } else { sfxWrong(); showFeedback('err', 'Rileggi l’indovinello evidenziato in rosso!'); }
+        };
+        g.appendChild(b);
+      });
+      stage.appendChild(g);
+    }
+    draw();
+    onHintAction = function() { hinted = true; draw(); };
+  }
+
+  /* --- UI WIRING --- */
+  function syncDiffButtons() {
+    document.getElementById('title-diff-easy').className = 'diff-btn' + (difficulty==='easy'?' active-easy':'');
+    document.getElementById('title-diff-hard').className = 'diff-btn' + (difficulty==='hard'?' active-hard':'');
+    document.getElementById('hud-diff-easy').className = difficulty==='easy'?'on-easy':'';
+    document.getElementById('hud-diff-hard').className = difficulty==='hard'?'on-hard':'';
+  }
+  function setDifficulty(next) {
+    if (next === difficulty) return;
+    sfxTap(); difficulty = next; rescued.clear();
+    syncDiffButtons();
+    document.getElementById('victory-modal').classList.add('hidden');
+    renderSanta(); renderMap();
+  }
+  document.getElementById('title-diff-easy').onclick = function(){ setDifficulty('easy'); };
+  document.getElementById('title-diff-hard').onclick = function(){ setDifficulty('hard'); };
+  document.getElementById('hud-diff-easy').onclick = function(){ setDifficulty('easy'); };
+  document.getElementById('hud-diff-hard').onclick = function(){ setDifficulty('hard'); };
+
+  function syncMusicButtons() {
+    var mBtn = document.getElementById('btn-music');
+    var tBtn = document.getElementById('title-music-btn');
+    mBtn.textContent = musicMuted ? '🎵 Attiva musica' : '🎵 Escludi musica';
+    mBtn.className = 'hud-btn ' + (musicMuted ? 'music-off' : 'music-on');
+    tBtn.textContent = musicMuted ? '🎵 Musica esclusa' : '🎵 Musica inclusa';
+    tBtn.className = 'hud-btn ' + (musicMuted ? 'music-off' : 'music-on');
+  }
+  function toggleMusic() {
+    musicMuted = !musicMuted;
+    if (musicMuted) stopMusic(); else { sfxTap(); startMusic(); }
+    syncMusicButtons();
+  }
+  document.getElementById('btn-music').onclick = toggleMusic;
+  document.getElementById('title-music-btn').onclick = toggleMusic;
+
+  document.getElementById('music-select').onchange = function() {
+    sfxTap(); currentTrack = this.value;
+    if (!musicMuted) { stopMusic(); startMusic(); }
+  };
+
+  document.getElementById('btn-sfx').onclick = function() {
+    sfxMuted = !sfxMuted;
+    this.textContent = sfxMuted ? '🔇 Effetti OFF' : '🔊 Effetti ON';
+    if (!sfxMuted) sfxTap();
+  };
+
+  document.getElementById('btn-start').onclick = function() {
+    sfxTap();
+    if (!musicMuted) startMusic();
+    document.getElementById('title-screen').classList.add('hidden');
+    document.getElementById('game-screen').classList.remove('hidden');
+    renderSanta(); renderMap();
+  };
+  document.getElementById('btn-close-modal').onclick = function() {
+    sfxTap(); document.getElementById('challenge-modal').classList.add('hidden');
+  };
+  document.getElementById('btn-hint').onclick = function() {
+    sfxHint(); document.getElementById('hint-box').classList.remove('hidden');
+    if (onHintAction) onHintAction();
+  };
+  function resetAll() {
+    sfxTap(); rescued.clear();
+    document.getElementById('victory-modal').classList.add('hidden');
+    renderSanta(); renderMap();
+  }
+  document.getElementById('btn-reset').onclick = resetAll;
+  document.getElementById('btn-play-again').onclick = resetAll;
+  document.getElementById('btn-try-hard').onclick = function() { setDifficulty('hard'); };
+})();
+</script>
+</body>
+</html>
